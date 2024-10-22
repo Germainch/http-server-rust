@@ -2,8 +2,13 @@
 mod http;
 
 use std::{fs, io::{prelude::*, BufReader}, net::{TcpListener, TcpStream}};
+use std::cmp::PartialEq;
 use std::str::FromStr;
 use crate::http::request::{Method, Request};
+use crate::http::request::Method::{GET, POST};
+use crate::http::response;
+use crate::http::response::Response;
+use crate::http::route::Route;
 
 fn main() {
 
@@ -21,6 +26,12 @@ fn main() {
     }
 }
 
+fn handle_get_index(request: Request, mut response: Response){
+    println!("{request:#?}");
+    response = Response::from_file(200, "src/index.html")
+}
+
+
 fn handle_connection(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
     let http_request: Vec<_> = buf_reader
@@ -28,25 +39,26 @@ fn handle_connection(mut stream: TcpStream) {
         .map(|result| result.expect("Failed to read line"))
         .take_while(|line| !line.is_empty())
         .collect();
-    println!("Request: {http_request:#?}");
+    // println!("Request: {http_request:#?}");
 
 
-    let request = http::request::Request::from_str(http_request[0].as_str()).unwrap();
-    println!("Request: {:#?}", request);
+    let request = Request::from_str(http_request[0].as_str()).unwrap();
+    let route = (request.method.clone(), request.uri.as_str());
+    let response = Response::new(200, "Hello, World!".to_string());
 
-    let mut status_line = "";
-    let mut filepath = "";
 
-    let routes = vec![
-        ("/", "src/index.html"),
-        ("/about", "src/about.html"),
-        ("/contact", "src/contact.html"),
+    let mut filepath = "src/index.html";
+
+    let routes: Vec<Route> = vec![
+        Route::get("/", handle_get_index),
     ];
 
-    let contents = fs::read_to_string(filepath).unwrap();
-    let length = contents.len();
-    let response =
-        format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+    for r in routes {
+        if r.method == route.0 && r.uri == route.1 {
+            (r.handler)(request, response);
+            return;
+        }
+    }
 
-    stream.write_all(response.as_bytes()).unwrap();
+    stream.write_all(response.into_string().as_bytes()).unwrap();
 }

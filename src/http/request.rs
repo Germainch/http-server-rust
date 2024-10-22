@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use crate::http::request::Method::*;
 
 #[derive(Debug)]
 pub struct Request {
@@ -34,7 +35,7 @@ impl FromStr for Request {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Method {
     POST,
     GET,
@@ -43,6 +44,21 @@ pub enum Method {
     PATCH,
     HEAD,
     OPTIONS,
+}
+
+impl PartialEq for Method {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (GET, GET) => true,
+            (POST, POST) => true,
+            (PUT, PUT) => true,
+            (DELETE, DELETE) => true,
+            (PATCH, PATCH) => true,
+            (HEAD, HEAD) => true,
+            (OPTIONS, OPTIONS) => true,
+            _ => false,
+        }
+    }
 }
 
 impl FromStr for Method{
